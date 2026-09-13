@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MediaDrop — MP4 / MP3 Converter</title>
+  <meta name="description" content="Convert your own media files or authorized direct media URLs to MP4 or MP3." />
+  <style>
+    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#212746 0,#0c0f1c 42%,#070910 100%);color:#f7f8ff}
+    .wrap{width:min(920px,92vw);margin:auto;padding:54px 0}.brand{font-weight:900;letter-spacing:-.04em;font-size:28px}.brand span{color:#8ba4ff}
+    .hero{text-align:center;margin:72px auto 34px;max-width:760px}.hero h1{font-size:clamp(42px,8vw,76px);line-height:.95;margin:0 0 20px;letter-spacing:-.065em}.hero p{color:#b7bfd9;font-size:18px;line-height:1.6;margin:auto;max-width:650px}
+    .card{background:rgba(19,24,43,.86);border:1px solid rgba(255,255,255,.1);border-radius:26px;box-shadow:0 30px 80px rgba(0,0,0,.35);overflow:hidden}.tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.08)}
+    .tab{flex:1;padding:18px;background:transparent;color:#9aa4c2;border:0;font-weight:800;font-size:15px;cursor:pointer}.tab.active{color:#fff;background:rgba(255,255,255,.045)}
+    .panel{padding:28px}.drop{border:1.5px dashed #52618f;border-radius:19px;padding:34px;text-align:center;background:#0d1222;transition:.2s}.drop.drag{border-color:#9fb0ff;background:#121a31}.drop strong{display:block;font-size:20px;margin-bottom:8px}.muted{color:#8f99b7;font-size:14px}
+    input[type=file]{display:none}.btn,.fakebtn{appearance:none;border:0;border-radius:14px;padding:14px 18px;font-weight:900;cursor:pointer;font-size:15px}.fakebtn{display:inline-block;background:#252f52;margin-top:18px}.btn{width:100%;background:linear-gradient(135deg,#6f86ff,#8d6cff);color:white;margin-top:18px}.btn:disabled{opacity:.55;cursor:not-allowed}
+    .row{display:grid;grid-template-columns:1fr 160px;gap:12px;margin-top:18px}.url{width:100%;background:#0b1020;border:1px solid #2b3557;color:white;border-radius:14px;padding:14px 15px;font-size:15px;outline:none}.url:focus{border-color:#7589dd}
+    select{background:#0b1020;border:1px solid #2b3557;color:#fff;border-radius:14px;padding:0 14px;font-weight:800}.notice{margin-top:18px;padding:14px 16px;border-radius:14px;background:#11182b;color:#9da8c9;font-size:13px;line-height:1.5}.status{min-height:26px;margin-top:16px;text-align:center;font-weight:700}.success a{color:#bfcaff}.error{color:#ff9ca7}.hidden{display:none}
+    footer{text-align:center;color:#68718e;font-size:13px;margin-top:28px}@media(max-width:640px){.wrap{padding-top:28px}.hero{margin-top:48px}.panel{padding:20px}.row{grid-template-columns:1fr}.hero h1{font-size:48px}}
+  </style>
+  <script src="/config.js"></script>
+</head>
+<body>
+  <main class="wrap">
+    <div class="brand">Media<span>Drop</span></div>
+    <section class="hero">
+      <h1>Convert media.<br/>Keep it simple.</h1>
+      <p>Turn media you own—or direct media URLs you are authorized to download—into clean MP4 video or MP3 audio files.</p>
+    </section>
+
+    <section class="card">
+      <div class="tabs">
+        <button class="tab active" data-tab="upload">Upload a file</button>
+        <button class="tab" data-tab="url">Direct media URL</button>
+      </div>
+
+      <div id="upload" class="panel">
+        <form id="uploadForm">
+          <label class="drop" id="dropZone">
+            <strong id="fileLabel">Drop your video or audio here</strong>
+            <span class="muted">or choose a file from your device</span><br/>
+            <span class="fakebtn">Choose file</span>
+            <input id="file" name="file" type="file" accept="video/*,audio/*" required />
+          </label>
+          <div class="row"><div></div><select name="format"><option value="mp4">MP4 video</option><option value="mp3">MP3 audio</option></select></div>
+          <button class="btn" type="submit">Convert file</button>
+        </form>
+      </div>
+
+      <div id="url" class="panel hidden">
+        <form id="urlForm">
+          <div class="row">
+            <input class="url" name="url" type="url" placeholder="https://example.com/video.mp4" required />
+            <select name="format"><option value="mp4">MP4 video</option><option value="mp3">MP3 audio</option></select>
+          </div>
+          <button class="btn" type="submit">Fetch & convert</button>
+          <div class="notice">Direct file/media URLs only. YouTube links and private/local-network addresses are intentionally blocked.</div>
+        </form>
+      </div>
+      <div id="status" class="status"></div>
+    </section>
+    <footer>Downloads expire after 30 minutes and are deleted after use.</footer>
+  </main>
+<script>
+  const API_BASE=(window.MEDIADROP_API_BASE||'').replace(/\/$/,'');
+  const api=(path)=>API_BASE+path;
+  const tabs=[...document.querySelectorAll('.tab')];
+  tabs.forEach(t=>t.onclick=()=>{tabs.forEach(x=>x.classList.remove('active'));t.classList.add('active');document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));document.getElementById(t.dataset.tab).classList.remove('hidden');clearStatus();});
+  const file=document.getElementById('file'), label=document.getElementById('fileLabel'), drop=document.getElementById('dropZone'), status=document.getElementById('status');
+  file.onchange=()=>{if(file.files[0]) label.textContent=file.files[0].name};
+  for(const ev of ['dragenter','dragover']) drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag')});
+  for(const ev of ['dragleave','drop']) drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')});
+  drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0]){file.files=e.dataTransfer.files;label.textContent=file.files[0].name}});
+  function clearStatus(){status.textContent='';status.className='status'}
+  async function finish(r,btn,label){const data=await r.json();if(!r.ok)throw new Error(data.error||'Conversion failed');status.className='status success';const downloadUrl=data.downloadUrl.startsWith('http')?data.downloadUrl:api(data.downloadUrl);status.innerHTML=`Ready — <a href="${downloadUrl}">download your file</a>`;btn.disabled=false;btn.textContent=label}
+  document.getElementById('uploadForm').onsubmit=async e=>{e.preventDefault();clearStatus();const form=e.currentTarget,btn=form.querySelector('.btn'),f=file.files[0],fmt=form.querySelector('select').value;if(!f)return;btn.disabled=true;btn.textContent='Converting…';status.textContent='Working on it…';try{const r=await fetch(api('/api/convert/upload?format='+encodeURIComponent(fmt)),{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Filename':encodeURIComponent(f.name)},body:f});await finish(r,btn,'Convert file')}catch(err){status.className='status error';status.textContent=err.message;btn.disabled=false;btn.textContent='Convert file'}};
+  document.getElementById('urlForm').onsubmit=async e=>{e.preventDefault();clearStatus();const form=e.currentTarget,btn=form.querySelector('.btn'),url=form.elements.url.value,format=form.elements.format.value;btn.disabled=true;btn.textContent='Converting…';status.textContent='Working on it…';try{const r=await fetch(api('/api/convert/url'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,format})});await finish(r,btn,'Fetch & convert')}catch(err){status.className='status error';status.textContent=err.message;btn.disabled=false;btn.textContent='Fetch & convert'}};
+</script>
+</body>
+</html>
